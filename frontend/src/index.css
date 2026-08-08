@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+/*
+ * Brand palette sampled directly from "Nuestros servicios Oopss Nails.pdf"
+ * (cover page + category headers), not invented — see docs/decision_log.md DEC-12.
+ * Base cream: #F7F2F0 · taupe/mocha: #917E72 · tan accents: #C2AB9D / #E6DED9.
+ */
+:root {
+  --color-bg: #f7f2f0;
+  --color-surface: 255 255 255;
+  --color-surface-alpha: 0.6;
+  --color-primary: #917e72;
+  --color-primary-dark: #6b5a4e;
+  --color-accent: #c2ab9d;
+  --color-text: #4a3f3a;
+  --color-text-muted: #8a7a72;
+  --color-border: 145 126 114;
+  --color-border-alpha: 0.25;
+  --color-success: #6b8f5c;
+  --color-warning: #c98a2c;
+  --color-error: #c1614a;
+}
+
+:root[data-theme="dark"] {
+  --color-bg: #241b1e;
+  --color-surface: 40 30 33;
+  --color-surface-alpha: 0.5;
+  --color-primary: #d9bfae;
+  --color-primary-dark: #f0e4da;
+  --color-accent: #d2a56b;
+  --color-text: #f3ece7;
+  --color-text-muted: #c9b8ae;
+  --color-border: 217 191 174;
+  --color-border-alpha: 0.12;
+  --color-success: #8fb37e;
+  --color-warning: #e0b15c;
+  --color-error: #e08a72;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: #241b1e;
+    --color-surface: 40 30 33;
+    --color-surface-alpha: 0.5;
+    --color-primary: #d9bfae;
+    --color-primary-dark: #f0e4da;
+    --color-accent: #d2a56b;
+    --color-text: #f3ece7;
+    --color-text-muted: #c9b8ae;
+    --color-border: 217 191 174;
+    --color-border-alpha: 0.12;
+    --color-success: #8fb37e;
+    --color-warning: #e0b15c;
+    --color-error: #e08a72;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family:
+    "Inter",
+    system-ui,
+    -apple-system,
+    sans-serif;
+}
+
+.glass-card {
+  background: rgb(var(--color-surface) / var(--color-surface-alpha));
+  border: 1px solid rgb(var(--color-border) / var(--color-border-alpha));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 1rem;
+}

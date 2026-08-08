@@ -1,0 +1,43 @@
+# Environment and secrets
+.env
+.env.local
+.env.production
+
+# Dependencies
+node_modules/
+vendor/
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# User-uploaded files (local dev volume; production uses a mounted Docker volume)
+backend/uploads/
+!backend/uploads/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Docker
+docker-compose.override.yml
+
+# OS
+Thumbs.db
