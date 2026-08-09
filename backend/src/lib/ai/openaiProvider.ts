@@ -52,6 +52,13 @@ export class OpenAIProvider implements AIProvider {
       model: env.OPENAI_MODEL,
       messages: toOpenAIMessages(messages),
       tools: toOpenAITools(tools),
+      // A booking assistant should be precise and rule-following, not creative — low
+      // temperature measurably reduced a real observed failure mode (inventing plausible-
+      // looking but nonexistent service names in prose instead of relying on the real catalog
+      // via tool calls). Not 0: a touch of variation keeps phrasing from feeling robotic while
+      // still being far more deterministic about following explicit instructions than the
+      // API's default.
+      temperature: 0.2,
     });
 
     const choice = response.choices[0];
@@ -82,6 +89,7 @@ export class OpenAIProvider implements AIProvider {
       messages: toOpenAIMessages(messages),
       tools: toOpenAITools(tools),
       stream: true,
+      temperature: 0.2,
     });
 
     let content = "";

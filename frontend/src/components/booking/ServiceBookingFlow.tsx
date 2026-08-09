@@ -45,20 +45,29 @@ export function ServiceBookingFlow({
   onClose?: () => void;
   showProgress?: boolean;
   // Categories the AI already narrowed down from what the client said (e.g. "las uñas" ->
-  // ["Manos","Pies"]) — when present, skips the "¿qué categoría?" step entirely and goes
-  // straight to a combined services list across just those categories, instead of making
-  // her pick a category she basically already told the assistant.
+  // ["Manos","Pies"]). With exactly one category, there's nothing left to pick — skip the
+  // "¿qué categoría?" step entirely and go straight to that category's services. With more
+  // than one (still ambiguous — "uñas" alone doesn't say manos or pies), keep the normal
+  // single-tap "categoria" step, just filtered down to only the relevant ones instead of
+  // showing all 10.
   initialCategories?: string[];
 }) {
-  const hasInitialCategories = Boolean(initialCategories && initialCategories.length > 0);
-  const [step, setStep] = useState<Step>(hasInitialCategories ? "servicio" : "categoria");
+  const singleInitialCategory =
+    initialCategories && initialCategories.length === 1 ? initialCategories[0] : null;
+  // Fixed for the lifetime of this widget instance (derived from props, never reassigned) —
+  // narrows which category buttons the "categoria" step offers, when the AI already narrowed
+  // it from context. null means show every category, same as before this existed.
+  const categoryFilter = initialCategories && initialCategories.length > 1 ? initialCategories : null;
+
+  const [step, setStep] = useState<Step>(singleInitialCategory ? "servicio" : "categoria");
   const [subStep, setSubStep] = useState<BookingSubStep>("especialista");
   const [servicesData, setServicesData] = useState<ServiceSummary[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  // The category (or categories, when pre-narrowed by the AI) currently in scope for the
-  // "servicio" step. A manual tap on the "categoria" step always narrows this to one.
+  // The single category currently in scope for the "servicio" step — always exactly one,
+  // since even a pre-narrowed multi-category hint (categoryFilter) still requires a single
+  // tap to pick between them, same "selección simple" pattern used everywhere else.
   const [selectedCategories, setSelectedCategories] = useState<string[] | null>(
-    hasInitialCategories ? (initialCategories as string[]) : null,
+    singleInitialCategory ? [singleInitialCategory] : null,
   );
   const [service, setService] = useState<ServiceSummary | null>(null);
   const [specialistAutoSelected, setSpecialistAutoSelected] = useState(false);
@@ -84,6 +93,14 @@ export function ServiceBookingFlow({
     return list;
   }, [servicesData]);
 
+  // The "categoria" step's own button list — every category, unless the AI already narrowed
+  // it down to more than one relevant option ("las uñas" -> Manos, Pies), in which case only
+  // those show. A single pre-narrowed category skips this step entirely (see step init above).
+  const visibleCategories = useMemo(
+    () => (categoryFilter ? categories.filter((c) => categoryFilter.includes(c)) : categories),
+    [categories, categoryFilter],
+  );
+
   const servicesInScope = useMemo(
     () => (servicesData && selectedCategories ? servicesData.filter((s) => selectedCategories.includes(s.categoryName)) : []),
     [servicesData, selectedCategories],
@@ -98,8 +115,8 @@ export function ServiceBookingFlow({
   }
 
   function reset() {
-    setStep(hasInitialCategories ? "servicio" : "categoria");
-    setSelectedCategories(hasInitialCategories ? (initialCategories as string[]) : null);
+    setStep(singleInitialCategory ? "servicio" : "categoria");
+    setSelectedCategories(singleInitialCategory ? [singleInitialCategory] : null);
     setService(null);
     flow.reset();
   }
@@ -143,7 +160,7 @@ export function ServiceBookingFlow({
             ¿En qué servicio desearías agendar hoy?
           </p>
           <div className="flex flex-wrap gap-2">
-            {categories.map((c) => (
+            {visibleCategories.map((c) => (
               <button
                 key={c}
                 type="button"
@@ -183,9 +200,9 @@ export function ServiceBookingFlow({
             <button
               type="button"
               onClick={() => {
-                // Always land on the full category list, even if this "servicio" step was
-                // reached by skipping "categoria" entirely (a pre-narrowed category from the
-                // AI) — otherwise there'd be no way back to see everything else the salon offers.
+                // visibleCategories re-derives correctly either way: back to the narrowed
+                // Manos/Pies-style pair if that's how we got here, or to every category if
+                // this "servicio" step was reached by skipping a single pre-narrowed category.
                 setSelectedCategories(null);
                 setStep("categoria");
               }}
