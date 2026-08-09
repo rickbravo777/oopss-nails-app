@@ -110,6 +110,10 @@ const editSchema = z
   .object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     startTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+    // Only meaningful alongside date+startTime — switching specialist without a slot to
+    // re-validate it against doesn't make sense, so it's ignored unless both are also present
+    // (see the route handler below).
+    specialistId: z.string().uuid().optional(),
     status: z.enum(["pending_confirmation", "confirmed", "cancelled", "completed", "no_show"]).optional(),
     notes: z.string().max(1000).optional(),
   })
@@ -136,7 +140,7 @@ adminAppointmentsRouter.put("/:id", async (req, res, next) => {
     }
 
     if (parsed.data.date && parsed.data.startTime) {
-      await rescheduleAppointment(req.params.id, parsed.data.date, parsed.data.startTime);
+      await rescheduleAppointment(req.params.id, parsed.data.date, parsed.data.startTime, parsed.data.specialistId);
     }
 
     if (parsed.data.status !== undefined || parsed.data.notes !== undefined) {

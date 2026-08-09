@@ -37,6 +37,7 @@ export function fetchAdminAppointments(filters: AppointmentFilters): Promise<{ a
 export interface AppointmentEditInput {
   date?: string;
   startTime?: string;
+  specialistId?: string;
   status?: string;
   notes?: string;
 }

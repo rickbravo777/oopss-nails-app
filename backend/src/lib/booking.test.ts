@@ -293,4 +293,30 @@ describe("rescheduleAppointment", () => {
     await expect(rescheduleAppointment("appt-1", "2026-08-05", "10:00")).rejects.toThrow(SlotUnavailableError);
     expect(mockedAppointmentUpdate).not.toHaveBeenCalled();
   });
+
+  it("switches to a different specialist when newSpecialistId is given, re-validating against that specialist's own schedule", async () => {
+    mockedAppointmentFindUnique.mockResolvedValue(EXISTING as never);
+    // The new specialist has a different duration override for this service (75 -> 60 min) —
+    // the slot's own endTime, not the old appointment's snapshotted duration, must win.
+    mockedCheckAvailability.mockResolvedValue([
+      { specialistId: "sp-2", specialistName: "Aurora", date: "2026-08-05", startTime: "10:00", endTime: "11:00" },
+    ]);
+    mockedAppointmentUpdate.mockResolvedValue({
+      id: "appt-1",
+      confirmationCode: "ABC123",
+      status: "confirmed",
+      startTime: "10:00",
+      endTime: "11:00",
+      specialist: { id: "sp-2", name: "Aurora" },
+      services: [{ service: { id: "svc-1", name: "Rubber Gel" }, priceSnapshot: 35, durationMinutesSnapshot: 60 }],
+    } as never);
+
+    const result = await rescheduleAppointment("appt-1", "2026-08-05", "10:00", "sp-2");
+
+    expect(result.specialist).toEqual({ id: "sp-2", name: "Aurora" });
+    expect(mockedCheckAvailability).toHaveBeenCalledWith(expect.objectContaining({ specialistId: "sp-2" }));
+    expect(mockedAppointmentUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ specialistId: "sp-2", endTime: "11:00" }) }),
+    );
+  });
 });

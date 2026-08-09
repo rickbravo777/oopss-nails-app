@@ -40,7 +40,10 @@ export function cancelAppointment(id: string, phone: string, confirmationCode: s
   }).then((res) => parseErrorOr<AppointmentDetail>(res, "No se pudo cancelar la cita"));
 }
 
-export function checkAvailability(serviceIds: string[], specialistId: string, dateFrom: string, dateTo: string) {
+// specialistId omitted returns slots across every specialist who can perform the service(s) —
+// used by the admin reschedule flow to let the client see (and switch to) any qualifying
+// specialist, not just the one already assigned.
+export function checkAvailability(serviceIds: string[], specialistId: string | undefined, dateFrom: string, dateTo: string) {
   return fetch(`${API_BASE}/availability/check`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

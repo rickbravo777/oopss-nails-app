@@ -166,13 +166,16 @@ export class AppointmentNotReschedulableError extends Error {
   }
 }
 
-// Moves an existing appointment to a new date/time with the same specialist and services —
-// re-validated against the real schedule exactly like a new booking (excluding the
-// appointment's own current slot from the conflict check, so it doesn't block itself).
+// Moves an existing appointment to a new date/time, optionally with a different specialist
+// (e.g. the client wants to switch staff) — re-validated against the real schedule exactly
+// like a new booking (excluding the appointment's own current slot from the conflict check,
+// so it doesn't block itself). Omitting newSpecialistId keeps the current one, same as before
+// this parameter existed.
 export async function rescheduleAppointment(
   appointmentId: string,
   newDate: string,
   newStartTime: string,
+  newSpecialistId?: string,
 ): Promise<CreatedAppointment> {
   const appointment = await prisma.appointment.findUnique({
     where: { id: appointmentId },
@@ -185,10 +188,11 @@ export async function rescheduleAppointment(
     throw new AppointmentNotReschedulableError();
   }
 
+  const targetSpecialistId = newSpecialistId ?? appointment.specialistId;
   const serviceIds = appointment.services.map((s) => s.serviceId);
   const slots = await checkAvailability({
     serviceIds,
-    specialistId: appointment.specialistId,
+    specialistId: targetSpecialistId,
     dateFrom: newDate,
     dateTo: newDate,
     excludeAppointmentId: appointment.id,
@@ -198,17 +202,20 @@ export async function rescheduleAppointment(
     throw new SlotUnavailableError();
   }
 
-  const totalDuration = appointment.services.reduce((sum, s) => sum + s.durationMinutesSnapshot, 0);
-  const [h, m] = newStartTime.split(":").map(Number);
-  const endMinutes = h * 60 + m + totalDuration;
-  const newEndTime = `${Math.floor(endMinutes / 60)
-    .toString()
-    .padStart(2, "0")}:${(endMinutes % 60).toString().padStart(2, "0")}`;
-
+  // Use the slot's own endTime rather than recomputing from the original booking's snapshotted
+  // duration — checkAvailability() already accounts for the target specialist's own duration
+  // override (if any) for this service, which can differ from the specialist being switched
+  // away from. Recomputing from the stale snapshot could silently produce an endTime the
+  // availability check never actually validated as free.
   try {
     const updated = await prisma.appointment.update({
       where: { id: appointmentId },
-      data: { date: new Date(`${newDate}T00:00:00Z`), startTime: newStartTime, endTime: newEndTime },
+      data: {
+        date: new Date(`${newDate}T00:00:00Z`),
+        startTime: newStartTime,
+        endTime: matchingSlot.endTime,
+        ...(newSpecialistId ? { specialistId: newSpecialistId } : {}),
+      },
       include: {
         specialist: { select: { id: true, name: true } },
         services: { include: { service: { select: { id: true, name: true } } } },

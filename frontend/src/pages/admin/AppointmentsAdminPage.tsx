@@ -9,6 +9,7 @@ import { Input } from "../../components/ui/Input";
 import { ApiError } from "../../lib/apiClient";
 import { type AdminAppointment, fetchAdminAppointments, updateAdminAppointment } from "../../lib/api/admin/appointments";
 import { fetchSpecialists } from "../../lib/api/admin/specialists";
+import { checkAvailability, type AvailabilitySlot } from "../../lib/api/appointments";
 import { addDays, mondayOf, toISODate } from "../../lib/calendarDates";
 import { getSpecialistColor } from "../../lib/specialistColors";
 
@@ -47,6 +48,16 @@ function AppointmentEditModal({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
+
+  // Reagendar: a single-tap especialista → hora sub-flow (same pattern as the client-facing
+  // booking flows), letting the admin move the appointment to any qualifying specialist, not
+  // just re-timing it with whoever is already assigned — the backend previously had no way to
+  // change specialist at all, only date/time.
+  const [reschedulingMode, setReschedulingMode] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState(appointment.date);
+  const [rescheduleSlots, setRescheduleSlots] = useState<AvailabilitySlot[] | null>(null);
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
+  const [rescheduleSpecialistId, setRescheduleSpecialistId] = useState<string | null>(null);
 
   async function handleSave() {
     setError(null);
@@ -89,6 +100,57 @@ function AppointmentEditModal({
       setSaving(false);
     }
   }
+
+  async function loadRescheduleSlots(date: string) {
+    setRescheduleLoading(true);
+    setError(null);
+    setRescheduleSpecialistId(null);
+    try {
+      const serviceIds = appointment.services.map((s) => s.id);
+      // specialistId omitted — surfaces every qualifying specialist for that day, not just
+      // the one already assigned, so the admin can switch if the client wants different staff.
+      const res = await checkAvailability(serviceIds, undefined, date, date);
+      setRescheduleSlots(res.slots);
+    } catch {
+      setError("No se pudo consultar disponibilidad.");
+      setRescheduleSlots([]);
+    } finally {
+      setRescheduleLoading(false);
+    }
+  }
+
+  function startRescheduling() {
+    setReschedulingMode(true);
+    setRescheduleDate(appointment.date);
+    loadRescheduleSlots(appointment.date);
+  }
+
+  function handleRescheduleDateChange(date: string) {
+    setRescheduleDate(date);
+    loadRescheduleSlots(date);
+  }
+
+  async function handleConfirmReschedule(startTime: string) {
+    if (!rescheduleSpecialistId) return;
+    setError(null);
+    setSaving(true);
+    try {
+      await updateAdminAppointment(appointment.id, { date: rescheduleDate, startTime, specialistId: rescheduleSpecialistId });
+      await onSaved();
+      onClose();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo reagendar la cita");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Distinct specialists with at least one open slot that day, in the order their first slot
+  // appears — de-duplicated via a Map keyed by id.
+  const rescheduleSpecialists = rescheduleSlots
+    ? [...new Map(rescheduleSlots.map((s) => [s.specialistId, s.specialistName])).entries()]
+    : [];
+  const rescheduleTimesForSpecialist = rescheduleSlots?.filter((s) => s.specialistId === rescheduleSpecialistId) ?? [];
 
   const isActive = appointment.status !== "cancelled" && appointment.status !== "completed";
 
@@ -176,11 +238,85 @@ function AppointmentEditModal({
                   </Button>
                 </div>
               </div>
+            ) : reschedulingMode ? (
+              <div className="flex flex-col gap-3 border-t pt-3" style={{ borderColor: "rgb(var(--color-border) / var(--color-border-alpha))" }}>
+                <Input
+                  label="Nueva fecha"
+                  name="rescheduleDate"
+                  type="date"
+                  value={rescheduleDate}
+                  onChange={(e) => handleRescheduleDateChange(e.target.value)}
+                />
+
+                {rescheduleLoading && <p style={{ color: "var(--color-text-muted)" }}>Buscando disponibilidad…</p>}
+
+                {!rescheduleLoading && rescheduleSlots && rescheduleSpecialists.length === 0 && (
+                  <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+                    No hay especialistas disponibles ese día.
+                  </p>
+                )}
+
+                {!rescheduleLoading && rescheduleSpecialists.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-sm font-medium" style={{ color: "var(--color-text)" }}>
+                      ¿Con quién?
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {rescheduleSpecialists.map(([id, name]) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setRescheduleSpecialistId(id)}
+                          className="rounded-full px-3 py-2 text-sm"
+                          style={{
+                            border: "1px solid rgb(var(--color-border) / var(--color-border-alpha))",
+                            backgroundColor: rescheduleSpecialistId === id ? "var(--color-primary)" : "transparent",
+                            color: rescheduleSpecialistId === id ? "white" : "var(--color-text)",
+                          }}
+                        >
+                          {name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {rescheduleSpecialistId && (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-sm font-medium" style={{ color: "var(--color-text)" }}>
+                      ¿A qué hora?
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {rescheduleTimesForSpecialist.map((slot) => (
+                        <button
+                          key={slot.startTime}
+                          type="button"
+                          disabled={saving}
+                          onClick={() => handleConfirmReschedule(slot.startTime)}
+                          className="rounded-full px-3 py-2 text-sm"
+                          style={{ border: "1px solid rgb(var(--color-border) / var(--color-border-alpha))", color: "var(--color-text)" }}
+                        >
+                          {slot.startTime}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <Button variant="secondary" onClick={() => setReschedulingMode(false)} disabled={saving}>
+                  Volver
+                </Button>
+              </div>
             ) : (
               <div className="flex flex-wrap gap-2">
                 <Button onClick={handleSave} disabled={saving}>
                   {saving ? "Guardando..." : "Guardar"}
                 </Button>
+                {isActive && (
+                  <Button variant="secondary" onClick={startRescheduling} disabled={saving}>
+                    Reagendar
+                  </Button>
+                )}
                 {isActive && (
                   <Button variant="destructive" onClick={() => setConfirmingCancel(true)} disabled={saving}>
                     Cancelar cita

@@ -150,7 +150,21 @@ describe("PUT /api/v1/admin/appointments/:id", () => {
       .send({ date: "2026-08-11", startTime: "11:00" });
 
     expect(res.status).toBe(200);
-    expect(mockedReschedule).toHaveBeenCalledWith(FAKE_APPOINTMENT.id, "2026-08-11", "11:00");
+    expect(mockedReschedule).toHaveBeenCalledWith(FAKE_APPOINTMENT.id, "2026-08-11", "11:00", undefined);
+  });
+
+  it("passes specialistId through to rescheduleAppointment() when the client wants a different specialist", async () => {
+    mockedFindUnique.mockResolvedValueOnce(FAKE_APPOINTMENT as never).mockResolvedValueOnce(FAKE_APPOINTMENT as never);
+    mockedReschedule.mockResolvedValue({} as never);
+    const otherSpecialistId = "33333333-3333-3333-3333-333333333333";
+
+    const res = await request(createApp())
+      .put(`/api/v1/admin/appointments/${FAKE_APPOINTMENT.id}`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ date: "2026-08-11", startTime: "11:00", specialistId: otherSpecialistId });
+
+    expect(res.status).toBe(200);
+    expect(mockedReschedule).toHaveBeenCalledWith(FAKE_APPOINTMENT.id, "2026-08-11", "11:00", otherSpecialistId);
   });
 
   it("returns 409 when the new slot conflicts", async () => {
