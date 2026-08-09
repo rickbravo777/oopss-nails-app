@@ -140,8 +140,12 @@ export function KnowledgeBaseAdminPage() {
                 setTargetType(e.target.value as "service" | "category");
                 setTargetId("");
               }}
-              className="rounded-lg border bg-transparent px-3 py-2 text-sm"
-              style={{ borderColor: "rgb(var(--color-border) / var(--color-border-alpha))", color: "var(--color-text)" }}
+              className="rounded-lg border px-3 py-2 text-sm"
+              style={{
+                borderColor: "rgb(var(--color-border) / var(--color-border-alpha))",
+                color: "var(--color-text)",
+                backgroundColor: "rgb(var(--color-surface))",
+              }}
             >
               <option value="service">Servicio</option>
               <option value="category">Categoría</option>
@@ -155,8 +159,12 @@ export function KnowledgeBaseAdminPage() {
               required
               value={targetId}
               onChange={(e) => setTargetId(e.target.value)}
-              className="rounded-lg border bg-transparent px-3 py-2 text-sm"
-              style={{ borderColor: "rgb(var(--color-border) / var(--color-border-alpha))", color: "var(--color-text)" }}
+              className="rounded-lg border px-3 py-2 text-sm"
+              style={{
+                borderColor: "rgb(var(--color-border) / var(--color-border-alpha))",
+                color: "var(--color-text)",
+                backgroundColor: "rgb(var(--color-surface))",
+              }}
             >
               <option value="" disabled>
                 Selecciona

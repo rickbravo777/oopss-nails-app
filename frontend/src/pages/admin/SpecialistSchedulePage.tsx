@@ -234,8 +234,12 @@ export function SpecialistSchedulePage() {
               onChange={(e) =>
                 setNewConstraint({ ...newConstraint, dayOfWeek: e.target.value === "" ? undefined : Number(e.target.value) })
               }
-              className="rounded-lg border bg-transparent px-2 py-2 text-sm"
-              style={{ borderColor: "rgb(var(--color-border) / var(--color-border-alpha))", color: "var(--color-text)" }}
+              className="rounded-lg border px-2 py-2 text-sm"
+              style={{
+                borderColor: "rgb(var(--color-border) / var(--color-border-alpha))",
+                color: "var(--color-text)",
+                backgroundColor: "rgb(var(--color-surface))",
+              }}
             >
               <option value="">Todos los días</option>
               {DAY_NAMES.map((d, i) => (
@@ -330,8 +334,12 @@ export function SpecialistSchedulePage() {
             <select
               value={exceptionType}
               onChange={(e) => setExceptionType(e.target.value as "day_off" | "custom_hours")}
-              className="rounded-lg border bg-transparent px-2 py-2 text-sm"
-              style={{ borderColor: "rgb(var(--color-border) / var(--color-border-alpha))", color: "var(--color-text)" }}
+              className="rounded-lg border px-2 py-2 text-sm"
+              style={{
+                borderColor: "rgb(var(--color-border) / var(--color-border-alpha))",
+                color: "var(--color-text)",
+                backgroundColor: "rgb(var(--color-surface))",
+              }}
             >
               <option value="day_off">Día libre</option>
               <option value="custom_hours">Horario especial</option>

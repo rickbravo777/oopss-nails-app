@@ -46,6 +46,7 @@ function AppointmentEditModal({
   });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
 
   async function handleSave() {
     setError(null);
@@ -68,6 +69,28 @@ function AppointmentEditModal({
       setSaving(false);
     }
   }
+
+  // A dedicated one-click cancel, separate from "Guardar" — picking "Cancelada" from the
+  // Estado dropdown and then having to also hit "Guardar" was easy to miss (a real client
+  // clicked what they assumed was a cancel button and nothing happened, since it was actually
+  // the dialog's dismiss button). Cancels immediately with the appointment's current date/time,
+  // ignoring any unsaved date/time edits in the form — cancelling shouldn't also silently
+  // apply an unrelated reschedule.
+  async function handleCancelAppointment() {
+    setError(null);
+    setSaving(true);
+    try {
+      await updateAdminAppointment(appointment.id, { status: "cancelled" });
+      await onSaved();
+      onClose();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo cancelar la cita");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const isActive = appointment.status !== "cancelled" && appointment.status !== "completed";
 
   return (
     <div
@@ -113,8 +136,16 @@ function AppointmentEditModal({
                 <select
                   value={edit.status}
                   onChange={(e) => setEdit({ ...edit, status: e.target.value })}
-                  className="rounded-lg border bg-transparent px-3 py-2 text-sm"
-                  style={{ borderColor: "rgb(var(--color-border) / var(--color-border-alpha))", color: "var(--color-text)" }}
+                  className="rounded-lg border px-3 py-2 text-sm"
+                  style={{
+                    borderColor: "rgb(var(--color-border) / var(--color-border-alpha))",
+                    color: "var(--color-text)",
+                    // The dropdown's own popup is rendered by the browser, not this component
+                    // — without an explicit (non-transparent) background here, it defaulted to
+                    // white, making light-on-dark-theme text on every unselected option
+                    // unreadable. A solid background fixes it in both themes.
+                    backgroundColor: "rgb(var(--color-surface))",
+                  }}
                 >
                   {Object.entries(STATUS_LABELS).map(([value, label]) => (
                     <option key={value} value={value}>
@@ -130,14 +161,36 @@ function AppointmentEditModal({
                 {error}
               </p>
             )}
-            <div className="flex gap-2">
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? "Guardando..." : "Guardar"}
-              </Button>
-              <Button variant="secondary" onClick={onClose}>
-                Cancelar
-              </Button>
-            </div>
+
+            {confirmingCancel ? (
+              <div className="flex flex-col gap-2 border-t pt-3" style={{ borderColor: "rgb(var(--color-border) / var(--color-border-alpha))" }}>
+                <p className="text-sm" style={{ color: "var(--color-text)" }}>
+                  ¿Seguro que deseas cancelar esta cita?
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="destructive" onClick={handleCancelAppointment} disabled={saving}>
+                    {saving ? "Cancelando..." : "Sí, cancelar"}
+                  </Button>
+                  <Button variant="secondary" onClick={() => setConfirmingCancel(false)} disabled={saving}>
+                    Volver
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={handleSave} disabled={saving}>
+                  {saving ? "Guardando..." : "Guardar"}
+                </Button>
+                {isActive && (
+                  <Button variant="destructive" onClick={() => setConfirmingCancel(true)} disabled={saving}>
+                    Cancelar cita
+                  </Button>
+                )}
+                <Button variant="secondary" onClick={onClose} disabled={saving}>
+                  Cerrar
+                </Button>
+              </div>
+            )}
           </div>
         </Card>
       </div>
@@ -329,8 +382,12 @@ export function AppointmentsAdminPage() {
                 <select
                   value={listSpecialistId}
                   onChange={(e) => setListSpecialistId(e.target.value)}
-                  className="rounded-lg border bg-transparent px-3 py-2 text-sm"
-                  style={{ borderColor: "rgb(var(--color-border) / var(--color-border-alpha))", color: "var(--color-text)" }}
+                  className="rounded-lg border px-3 py-2 text-sm"
+                  style={{
+                    borderColor: "rgb(var(--color-border) / var(--color-border-alpha))",
+                    color: "var(--color-text)",
+                    backgroundColor: "rgb(var(--color-surface))",
+                  }}
                 >
                   <option value="">Todos</option>
                   {specialistsQuery.data?.specialists.map((s) => (
@@ -347,8 +404,12 @@ export function AppointmentsAdminPage() {
                 <select
                   value={listStatus}
                   onChange={(e) => setListStatus(e.target.value)}
-                  className="rounded-lg border bg-transparent px-3 py-2 text-sm"
-                  style={{ borderColor: "rgb(var(--color-border) / var(--color-border-alpha))", color: "var(--color-text)" }}
+                  className="rounded-lg border px-3 py-2 text-sm"
+                  style={{
+                    borderColor: "rgb(var(--color-border) / var(--color-border-alpha))",
+                    color: "var(--color-text)",
+                    backgroundColor: "rgb(var(--color-surface))",
+                  }}
                 >
                   <option value="">Todos</option>
                   {Object.entries(STATUS_LABELS).map(([value, label]) => (

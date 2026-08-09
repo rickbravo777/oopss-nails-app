@@ -206,8 +206,12 @@ export function ServicesAdminPage() {
                 required
                 value={form.categoryId}
                 onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-                className="rounded-lg border bg-transparent px-3 py-2 text-sm"
-                style={{ borderColor: "rgb(var(--color-border) / var(--color-border-alpha))", color: "var(--color-text)" }}
+                className="rounded-lg border px-3 py-2 text-sm"
+                style={{
+                  borderColor: "rgb(var(--color-border) / var(--color-border-alpha))",
+                  color: "var(--color-text)",
+                  backgroundColor: "rgb(var(--color-surface))",
+                }}
               >
                 <option value="" disabled>
                   Selecciona una categoría
@@ -236,8 +240,12 @@ export function ServicesAdminPage() {
                 <select
                   value={form.priceType}
                   onChange={(e) => setForm({ ...form, priceType: e.target.value as ServicePriceType })}
-                  className="rounded-lg border bg-transparent px-3 py-2 text-sm"
-                  style={{ borderColor: "rgb(var(--color-border) / var(--color-border-alpha))", color: "var(--color-text)" }}
+                  className="rounded-lg border px-3 py-2 text-sm"
+                  style={{
+                    borderColor: "rgb(var(--color-border) / var(--color-border-alpha))",
+                    color: "var(--color-text)",
+                    backgroundColor: "rgb(var(--color-surface))",
+                  }}
                 >
                   {Object.entries(PRICE_TYPE_LABELS).map(([value, label]) => (
                     <option key={value} value={value}>
