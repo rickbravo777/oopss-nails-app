@@ -30,6 +30,15 @@ function offeredServiceSelection(toolCallMeta?: ToolCallLogEntry[] | null): bool
   return Boolean(toolCallMeta?.some((entry) => entry.tool === "offer_service_selection"));
 }
 
+// Categories the AI already narrowed down from what the client said (e.g. "las uñas" ->
+// ["Manos","Pies"]), validated server-side (offerServiceSelection.ts) against the real
+// catalog — undefined/empty means show every category, same as before this existed.
+function offeredCategories(toolCallMeta?: ToolCallLogEntry[] | null): string[] | undefined {
+  const entry = toolCallMeta?.find((e) => e.tool === "offer_service_selection");
+  const result = entry?.result as { categories?: string[] } | undefined;
+  return result?.categories && result.categories.length > 0 ? result.categories : undefined;
+}
+
 export function ChatPage() {
   const [searchParams] = useSearchParams();
   const serviceId = searchParams.get("service");
@@ -269,7 +278,11 @@ export function ChatPage() {
             </div>
             {m.role === "assistant" && offeredServiceSelection(m.toolCallMeta) && sessionToken && (
               <Card className="max-w-[80%]">
-                <ServiceBookingFlow sessionToken={sessionToken} showProgress={false} />
+                <ServiceBookingFlow
+                  sessionToken={sessionToken}
+                  showProgress={false}
+                  initialCategories={offeredCategories(m.toolCallMeta)}
+                />
               </Card>
             )}
           </div>

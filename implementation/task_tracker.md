@@ -70,6 +70,7 @@ Change requests handled after delivery (`/iterate`). Not IT/UJ work units — tr
 | 16 | 2026-08-07 | Deployment prep: `git init` + first commit, reviewed Docker/EasyPanel config, generated production secrets | completed |
 | 17 | 2026-08-08 | EasyPanel deployment: repo pushed (public), `oopss-postgres`+`oopss-app` services created in `criteriabravo` project, env vars given, first build not yet run | in_progress — see project_memory.md's 🔴 EXACT RESUME POINT |
 | 18 | 2026-08-08 | Found and fixed the true root cause of recurring "admin no funciona" reports (#14-#17): expired 24h JWT with no client-side 401 handling — `apiClient.ts` now clears the token and redirects to login on 401 | completed |
+| 19 | 2026-08-08 | Added missing "Peinado" service; `offer_service_selection` gained an optional `categories` param so "uñas" narrows straight to Manos+Pies; caught+fixed a service-name-hallucination regression in the same pass | completed |
 
 ## Types
 

@@ -63,6 +63,7 @@ const SERVICES: ServiceSeed[] = [
   { category: "Cabello", name: "Lavado", priceType: "starting_at", price: 8, durationMinutes: 30, requiresConsultation: true, requiresPhoto: true },
   { category: "Cabello", name: "Corte", priceType: "starting_at", price: 15, durationMinutes: 45, requiresConsultation: true, requiresPhoto: true },
   { category: "Cabello", name: "Blower", priceType: "starting_at", price: 12, durationMinutes: 45, requiresConsultation: true, requiresPhoto: true },
+  { category: "Cabello", name: "Peinado", priceType: "starting_at", price: 25, durationMinutes: 60, requiresConsultation: true, requiresPhoto: true },
   { category: "Cabello", name: "Botox", priceType: "fixed", price: 40, durationMinutes: 90 },
   { category: "Cabello", name: "Tratamiento Básico", priceType: "fixed", price: 25, durationMinutes: 45 },
   { category: "Cabello", name: "Tratamiento Intensivo", priceType: "fixed", price: 55, durationMinutes: 90 },
@@ -223,6 +224,11 @@ const TERM_SYNONYMS: { term: string; serviceName: string }[] = [
   { term: "esmalte semipermanente", serviceName: "Pedicure Gel" },
   { term: "semipermanente", serviceName: "Manicure Gel" },
   { term: "semipermanente", serviceName: "Pedicure Gel" },
+  { term: "peinado para matrimonio", serviceName: "Peinado" },
+  { term: "peinado de novia", serviceName: "Peinado" },
+  { term: "peinado de boda", serviceName: "Peinado" },
+  { term: "peinado para eventos", serviceName: "Peinado" },
+  { term: "peinado de quince años", serviceName: "Peinado" },
 ];
 
 async function main() {

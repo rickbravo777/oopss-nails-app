@@ -39,16 +39,27 @@ export function ServiceBookingFlow({
   sessionToken,
   onClose,
   showProgress = true,
+  initialCategories,
 }: {
   sessionToken: string;
   onClose?: () => void;
   showProgress?: boolean;
+  // Categories the AI already narrowed down from what the client said (e.g. "las uñas" ->
+  // ["Manos","Pies"]) — when present, skips the "¿qué categoría?" step entirely and goes
+  // straight to a combined services list across just those categories, instead of making
+  // her pick a category she basically already told the assistant.
+  initialCategories?: string[];
 }) {
-  const [step, setStep] = useState<Step>("categoria");
+  const hasInitialCategories = Boolean(initialCategories && initialCategories.length > 0);
+  const [step, setStep] = useState<Step>(hasInitialCategories ? "servicio" : "categoria");
   const [subStep, setSubStep] = useState<BookingSubStep>("especialista");
   const [servicesData, setServicesData] = useState<ServiceSummary[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [category, setCategory] = useState<string | null>(null);
+  // The category (or categories, when pre-narrowed by the AI) currently in scope for the
+  // "servicio" step. A manual tap on the "categoria" step always narrows this to one.
+  const [selectedCategories, setSelectedCategories] = useState<string[] | null>(
+    hasInitialCategories ? (initialCategories as string[]) : null,
+  );
   const [service, setService] = useState<ServiceSummary | null>(null);
   const [specialistAutoSelected, setSpecialistAutoSelected] = useState(false);
 
@@ -73,9 +84,9 @@ export function ServiceBookingFlow({
     return list;
   }, [servicesData]);
 
-  const servicesInCategory = useMemo(
-    () => (servicesData && category ? servicesData.filter((s) => s.categoryName === category) : []),
-    [servicesData, category],
+  const servicesInScope = useMemo(
+    () => (servicesData && selectedCategories ? servicesData.filter((s) => selectedCategories.includes(s.categoryName)) : []),
+    [servicesData, selectedCategories],
   );
 
   async function selectService(s: ServiceSummary) {
@@ -87,8 +98,8 @@ export function ServiceBookingFlow({
   }
 
   function reset() {
-    setStep("categoria");
-    setCategory(null);
+    setStep(hasInitialCategories ? "servicio" : "categoria");
+    setSelectedCategories(hasInitialCategories ? (initialCategories as string[]) : null);
     setService(null);
     flow.reset();
   }
@@ -121,7 +132,9 @@ export function ServiceBookingFlow({
         </p>
       )}
 
-      {(step === "servicio" || step === "steps") && category && <SummaryRow label="Categoría" value={category} />}
+      {(step === "servicio" || step === "steps") && selectedCategories && (
+        <SummaryRow label="Categoría" value={selectedCategories.join(", ")} />
+      )}
       {step === "steps" && service && <SummaryRow label="Servicio" value={service.name} />}
 
       {step === "categoria" && (
@@ -135,7 +148,7 @@ export function ServiceBookingFlow({
                 key={c}
                 type="button"
                 onClick={() => {
-                  setCategory(c);
+                  setSelectedCategories([c]);
                   setStep("servicio");
                 }}
                 className="rounded-full px-3 py-2 text-sm"
@@ -152,9 +165,9 @@ export function ServiceBookingFlow({
       {step === "servicio" && (
         <div className="flex flex-col gap-2">
           <p className="text-sm font-medium" style={{ color: "var(--color-text)" }}>
-            ¿Cuál servicio de {category} te gustaría?
+            ¿Cuál servicio de {selectedCategories?.join(" o ")} te gustaría?
           </p>
-          {servicesInCategory.map((s) => (
+          {servicesInScope.map((s) => (
             <button
               key={s.id}
               type="button"
@@ -167,7 +180,18 @@ export function ServiceBookingFlow({
             </button>
           ))}
           <div className="mt-2 flex gap-2 border-t pt-3" style={{ borderColor: "rgb(var(--color-border) / var(--color-border-alpha))" }}>
-            <button type="button" onClick={() => setStep("categoria")} className="text-sm" style={{ color: "var(--color-primary)" }}>
+            <button
+              type="button"
+              onClick={() => {
+                // Always land on the full category list, even if this "servicio" step was
+                // reached by skipping "categoria" entirely (a pre-narrowed category from the
+                // AI) — otherwise there'd be no way back to see everything else the salon offers.
+                setSelectedCategories(null);
+                setStep("categoria");
+              }}
+              className="text-sm"
+              style={{ color: "var(--color-primary)" }}
+            >
               ← Atrás
             </button>
           </div>
