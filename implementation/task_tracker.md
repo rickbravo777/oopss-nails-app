@@ -69,6 +69,7 @@ Change requests handled after delivery (`/iterate`). Not IT/UJ work units — tr
 | 15 | 2026-08-07 | Admin "Citas"/"Servicios" pages could get stuck on "Cargando…" forever on a failed fetch (no `isError` UI branch) — added error + "Reintentar" to match the pattern already used in Dashboard | completed code-wise, **client's symptom not yet confirmed resolved** — see #16 |
 | 16 | 2026-08-07 | Deployment prep: `git init` + first commit, reviewed Docker/EasyPanel config, generated production secrets | completed |
 | 17 | 2026-08-08 | EasyPanel deployment: repo pushed (public), `oopss-postgres`+`oopss-app` services created in `criteriabravo` project, env vars given, first build not yet run | in_progress — see project_memory.md's 🔴 EXACT RESUME POINT |
+| 18 | 2026-08-08 | Found and fixed the true root cause of recurring "admin no funciona" reports (#14-#17): expired 24h JWT with no client-side 401 handling — `apiClient.ts` now clears the token and redirects to login on 401 | completed |
 
 ## Types
 
