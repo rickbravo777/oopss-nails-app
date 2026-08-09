@@ -67,7 +67,8 @@ Change requests handled after delivery (`/iterate`). Not IT/UJ work units — tr
 | 13 | 2026-08-07 | Google Sheets live sync (fire-and-forget, new Level-3 credentials) + email field + input formatting/placeholders on the contact step | completed, not yet activated (needs client's Google Cloud credentials) |
 | 14 | 2026-08-07 | Found and fixed the real root cause of "necesito refrescar para ver la respuesta" — a silently-dropped SSE reply when no `delta` preceded `done`; added a polling safety net | completed |
 | 15 | 2026-08-07 | Admin "Citas"/"Servicios" pages could get stuck on "Cargando…" forever on a failed fetch (no `isError` UI branch) — added error + "Reintentar" to match the pattern already used in Dashboard | completed code-wise, **client's symptom not yet confirmed resolved** — see #16 |
-| 16 | 2026-08-07 | Deployment prep: `git init` + first commit, reviewed Docker/EasyPanel config, generated production secrets | in_progress — waiting on client's GitHub repo URL + EasyPanel details |
+| 16 | 2026-08-07 | Deployment prep: `git init` + first commit, reviewed Docker/EasyPanel config, generated production secrets | completed |
+| 17 | 2026-08-08 | EasyPanel deployment: repo pushed (public), `oopss-postgres`+`oopss-app` services created in `criteriabravo` project, env vars given, first build not yet run | in_progress — see project_memory.md's 🔴 EXACT RESUME POINT |
 
 ## Types
 
