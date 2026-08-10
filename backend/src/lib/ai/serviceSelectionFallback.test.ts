@@ -60,6 +60,31 @@ describe("withServiceSelectionFallback", () => {
     expect(result).toBe(log);
   });
 
+  it("injects the picker when the reply uses the standard 'elige el que prefieras' phrasing but never actually called the tool", () => {
+    // Real reported bug: the model wrote this exact accompanying sentence (the one the prompt
+    // trains it to pair with a real tool call) without making the call — client saw text
+    // inviting her to choose and zero buttons.
+    const result = withServiceSelectionFallback(
+      [],
+      "Aquí tienes nuestras opciones de servicios para uñas. Elige el que prefieras 👇",
+    );
+    expect(result).toEqual([{ tool: "offer_service_selection", arguments: {}, result: { shown: true, fallback: true } }]);
+  });
+
+  it("also matches the specialist-choosing variant of the same phrasing", () => {
+    const result = withServiceSelectionFallback([], "Ahora elige la especialista que prefieras para tu cita.");
+    expect(result).toEqual([{ tool: "offer_service_selection", arguments: {}, result: { shown: true, fallback: true } }]);
+  });
+
+  it("does not fire on unrelated uses of 'elige' or 'prefieras' far apart in the same message", () => {
+    const log = [{ tool: "get_service_info", arguments: {}, result: { found: true } }];
+    const result = withServiceSelectionFallback(
+      log,
+      "Elige con calma, no hay prisa — cuando sepas qué día prefieres para tu cita, dímelo y seguimos.",
+    );
+    expect(result).toBe(log);
+  });
+
   it("preserves existing tool calls when appending the fallback", () => {
     const log = [{ tool: "get_service_info", arguments: { query: "uñas" }, result: { found: false } }];
     const result = withServiceSelectionFallback(log, "¿Qué servicio específico deseas?");
