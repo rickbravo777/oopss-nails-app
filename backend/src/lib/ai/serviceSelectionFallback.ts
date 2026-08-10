@@ -64,11 +64,16 @@ function resolveTargetService(
   confirmedServices: ConfirmedService[],
 ): ConfirmedService | undefined {
   const bolded = new Set(extractBoldedSegments(text).map((b) => b.toLowerCase()));
-  const boldMatch = confirmedServices.find((s) => bolded.has(s.name.toLowerCase()));
-  if (boldMatch) return boldMatch;
-  // No bolded match — if exactly one service has been confirmed so far, a "sí, agendemos" (or
-  // equivalent) almost certainly refers to it even though this reply didn't happen to bold its
-  // name. Two or more is genuinely ambiguous — don't guess which one.
+  const boldMatches = confirmedServices.filter((s) => bolded.has(s.name.toLowerCase()));
+  // Exactly one bolded match is a real signal (e.g. "para tu **Relleno Acrílico**..."). Two or
+  // more means the reply is presenting a CHOICE between them (e.g. "1. **Manicure Gel** 2.
+  // **Pedicure Gel**, elige el que prefieras") — picking the first one would silently book the
+  // wrong service, so that's genuinely ambiguous, same as zero matches.
+  if (boldMatches.length === 1) return boldMatches[0];
+  if (boldMatches.length >= 2) return undefined;
+  // No bolded match at all — if exactly one service has been confirmed so far in the whole
+  // conversation, a "sí, agendemos" (or equivalent) almost certainly refers to it even though
+  // this reply didn't happen to bold its name. Two or more confirmed is genuinely ambiguous.
   return confirmedServices.length === 1 ? confirmedServices[0] : undefined;
 }
 
@@ -78,6 +83,29 @@ function escapeRegExp(value: string): string {
 
 function findMentionedCategories(text: string, validCategoryNames: string[]): string[] {
   return validCategoryNames.filter((name) => new RegExp(`\\b${escapeRegExp(name)}\\b`, "i").test(text));
+}
+
+function isServiceNameArgs(value: unknown): value is { serviceName: string } {
+  return typeof value === "object" && value !== null && typeof (value as { serviceName?: unknown }).serviceName === "string";
+}
+
+// Real, observed failure: after discussing TWO specific services in the same conversation (e.g.
+// comparing prices), a generic "quiero agendar" got the model calling offer_service_selection
+// TWICE in the same reply — once per service — instead of once. The frontend only ever honors
+// the first offer_service_selection entry for a given message (ChatPage.tsx's `.find()`), so
+// this silently jumped straight to whichever service happened to be mentioned first, even though
+// the client hadn't actually chosen between them. The tool has no way to represent "let her pick
+// among these N specific already-confirmed services" (only ONE serviceName, or a category list),
+// so when the model tries to solve that by calling it multiple times, this collapses every
+// offer_service_selection entry in the reply down to a single generic picker instead of letting
+// the frontend arbitrarily honor just the first one — the client explicitly chooses instead of
+// the app silently guessing.
+function collapseConflictingServiceOffers(toolCallLog: ToolCallLogEntry[]): ToolCallLogEntry[] {
+  const serviceOffers = toolCallLog.filter((e) => e.tool === "offer_service_selection" && isServiceNameArgs(e.arguments));
+  const distinctNames = new Set(serviceOffers.map((e) => (e.arguments as { serviceName: string }).serviceName));
+  if (distinctNames.size <= 1) return toolCallLog;
+  const withoutServiceOffers = toolCallLog.filter((e) => e.tool !== "offer_service_selection");
+  return [...withoutServiceOffers, { tool: "offer_service_selection", arguments: {}, result: { shown: true, fallback: true } }];
 }
 
 export function withServiceSelectionFallback(
@@ -90,8 +118,9 @@ export function withServiceSelectionFallback(
     lastUserMessage?: string;
   } = {},
 ): ToolCallLogEntry[] {
-  const alreadyOffered = toolCallLog.some((entry) => entry.tool === "offer_service_selection");
-  if (alreadyOffered) return toolCallLog;
+  const dedupedLog = collapseConflictingServiceOffers(toolCallLog);
+  const alreadyOffered = dedupedLog.some((entry) => entry.tool === "offer_service_selection");
+  if (alreadyOffered) return dedupedLog;
 
   const asksForBookingDetailsInProse =
     ASKS_FOR_DAY_TIME.test(finalMessageContent) && ASKS_FOR_PHONE.test(finalMessageContent);
@@ -102,7 +131,7 @@ export function withServiceSelectionFallback(
     const matched = resolveTargetService(finalMessageContent, options.confirmedServices ?? []);
     if (matched) {
       return [
-        ...toolCallLog,
+        ...dedupedLog,
         {
           tool: "offer_service_selection",
           arguments: { serviceName: matched.name },
@@ -120,12 +149,12 @@ export function withServiceSelectionFallback(
     ASKS_TO_CHOOSE_ENTRE.test(finalMessageContent) ||
     asksForBookingDetailsInProse ||
     userExpressedBookingIntent;
-  if (!shouldOffer) return toolCallLog;
+  if (!shouldOffer) return dedupedLog;
 
   const mentionedCategories = findMentionedCategories(finalMessageContent, options.validCategoryNames ?? []);
   if (mentionedCategories.length > 0) {
     return [
-      ...toolCallLog,
+      ...dedupedLog,
       {
         tool: "offer_service_selection",
         arguments: { categories: mentionedCategories },
@@ -134,5 +163,5 @@ export function withServiceSelectionFallback(
     ];
   }
 
-  return [...toolCallLog, { tool: "offer_service_selection", arguments: {}, result: { shown: true, fallback: true } }];
+  return [...dedupedLog, { tool: "offer_service_selection", arguments: {}, result: { shown: true, fallback: true } }];
 }

@@ -9,6 +9,44 @@ describe("withServiceSelectionFallback", () => {
     expect(result).toBe(log);
   });
 
+  it("collapses two conflicting offer_service_selection calls (one per service) into a single generic picker instead of silently honoring the first one", () => {
+    // Real reported bug: after pricing both "Manicure Gel" and "Pedicure Gel", a generic "quiero
+    // agendar" got the model calling offer_service_selection TWICE in the same reply, once per
+    // service — the frontend only ever honors the FIRST offer_service_selection entry, so this
+    // silently jumped straight to Manicure Gel even though the client hadn't chosen between them.
+    const log = [
+      {
+        tool: "offer_service_selection",
+        arguments: { serviceName: "Manicure Gel" },
+        result: { shown: true, serviceId: "svc-manicure", serviceName: "Manicure Gel" },
+      },
+      {
+        tool: "offer_service_selection",
+        arguments: { serviceName: "Pedicure Gel" },
+        result: { shown: true, serviceId: "svc-pedicure", serviceName: "Pedicure Gel" },
+      },
+    ];
+    const result = withServiceSelectionFallback(log, "Elige el que prefieras 👇");
+    expect(result).toEqual([{ tool: "offer_service_selection", arguments: {}, result: { shown: true, fallback: true } }]);
+  });
+
+  it("does not collapse when the two offer_service_selection calls agree on the same service (not actually conflicting)", () => {
+    const log = [
+      {
+        tool: "offer_service_selection",
+        arguments: { serviceName: "Manicure Gel" },
+        result: { shown: true, serviceId: "svc-manicure", serviceName: "Manicure Gel" },
+      },
+      {
+        tool: "offer_service_selection",
+        arguments: { serviceName: "Manicure Gel" },
+        result: { shown: true, serviceId: "svc-manicure", serviceName: "Manicure Gel" },
+      },
+    ];
+    const result = withServiceSelectionFallback(log, "Elige a tu especialista 👇");
+    expect(result).toBe(log);
+  });
+
   it("leaves the log untouched when the reply doesn't ask which service", () => {
     const log = [{ tool: "get_service_info", arguments: { query: "manicure gel" }, result: { found: true } }];
     const result = withServiceSelectionFallback(log, "El Manicure Gel cuesta $24 con Tania o Mariangely.");
@@ -169,6 +207,26 @@ describe("withServiceSelectionFallback", () => {
       ],
       lastUserMessage: "si agendemos",
     });
+    expect(result).toEqual([{ tool: "offer_service_selection", arguments: {}, result: { shown: true, fallback: true } }]);
+  });
+
+  it("with TWO bolded confirmed-service names in the same reply (the model is presenting a choice), falls back to the generic picker instead of silently picking the first one", () => {
+    // Real reported bug: "cuanto cuesta el manicure gel y el pedicure gel" then "quiero agendar"
+    // got "Aquí tienes los servicios: 1. **Manicure Gel** 2. **Pedicure Gel**, elige el que
+    // prefieras" — both names are bolded and both are confirmed services, so the old
+    // `.find()`-based bold match silently jumped straight to Manicure Gel (the first one) even
+    // though the client hadn't chosen between them yet.
+    const result = withServiceSelectionFallback(
+      [],
+      "Aquí tienes los servicios disponibles: 1. **Manicure Gel** 2. **Pedicure Gel**. Por favor, elige el que prefieras 😊",
+      {
+        confirmedServices: [
+          { id: "svc-manicure-gel", name: "Manicure Gel" },
+          { id: "svc-pedicure-gel", name: "Pedicure Gel" },
+        ],
+        lastUserMessage: "quiero agendar",
+      },
+    );
     expect(result).toEqual([{ tool: "offer_service_selection", arguments: {}, result: { shown: true, fallback: true } }]);
   });
 
