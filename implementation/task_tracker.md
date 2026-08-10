@@ -76,6 +76,7 @@ Change requests handled after delivery (`/iterate`). Not IT/UJ work units — tr
 | 22 | 2026-08-09 | `get_service_info` couldn't find a real service if the client's phrasing had an extra word or missing accent (e.g. "extension en polygel" → "Extensión Polygel") — rewrote matching to be word-based, accent/case-insensitive | completed |
 | 23 | 2026-08-09 | Confirming a Q&A-clarified service ("si creemos cita") now jumps to the visual especialista→fecha→hora→datos selector instead of asking for those details in text — `offer_service_selection` gained a `serviceName` param, `ServiceBookingFlow` gained `initialServiceId` | completed |
 | 24 | 2026-08-09 | Naming a service + asking to book in one message ("agendar mani spa") showed the generic picker instead of that service (model guessed a fake name instead of calling get_service_info first) — fixed; added a requested "¿Quieres agendar X? Sí/No" confirm-first safety net for uncertain matches | completed |
+| 25 | 2026-08-09 | #24 still failed intermittently on cross-turn confirmation ("si agendemos") — root cause was history dropping tool-call context between turns; fixed deterministically with a "confirmed services" list re-derived from stored toolCallMeta and injected fresh every turn | completed |
 
 ## Types
 

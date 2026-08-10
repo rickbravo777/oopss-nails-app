@@ -4,6 +4,7 @@ import { Router } from "express";
 import { z } from "zod";
 
 import { publishChatEvent, subscribeChatEvents } from "../lib/chatEvents";
+import { buildConfirmedServicesNote, extractConfirmedServiceNames } from "../lib/ai/confirmedServices";
 import { OpenAIProvider } from "../lib/ai/openaiProvider";
 import { buildSystemPrompt } from "../lib/ai/systemPrompt";
 import { withServiceSelectionFallback } from "../lib/ai/serviceSelectionFallback";
@@ -113,8 +114,12 @@ async function processAssistantReply(conversationId: string): Promise<void> {
     prisma.message.findMany({ where: { conversationId }, orderBy: { createdAt: "asc" } }),
   ]);
 
+  // See confirmedServices.ts for why this exists — the model's own prior prose isn't reliable
+  // enough to re-derive a validated service name from on a later "sí, agendemos" turn.
+  const confirmedServicesNote = buildConfirmedServicesNote(extractConfirmedServiceNames(history));
   const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt },
+    ...(confirmedServicesNote ? [{ role: "system" as const, content: confirmedServicesNote }] : []),
     ...history.map((m) => ({ role: m.role, content: m.content }) as ChatMessage),
   ];
 
