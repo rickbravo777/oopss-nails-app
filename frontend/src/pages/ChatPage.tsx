@@ -49,6 +49,15 @@ function offeredServiceId(toolCallMeta?: ToolCallLogEntry[] | null): string | un
   return result?.serviceId;
 }
 
+// Set when the AI matched a service from imprecise/misspelled client wording but isn't fully
+// confident it's the right one — the booking flow asks "¿Quieres agendar X? Sí/No" with a
+// single tap before proceeding, instead of assuming.
+function offeredNeedsConfirmation(toolCallMeta?: ToolCallLogEntry[] | null): boolean {
+  const entry = toolCallMeta?.find((e) => e.tool === "offer_service_selection");
+  const result = entry?.result as { needsConfirmation?: boolean } | undefined;
+  return Boolean(result?.needsConfirmation);
+}
+
 export function ChatPage() {
   const [searchParams] = useSearchParams();
   const serviceId = searchParams.get("service");
@@ -293,6 +302,7 @@ export function ChatPage() {
                   showProgress={false}
                   initialCategories={offeredCategories(m.toolCallMeta)}
                   initialServiceId={offeredServiceId(m.toolCallMeta)}
+                  initialServiceNeedsConfirmation={offeredNeedsConfirmation(m.toolCallMeta)}
                 />
               </Card>
             )}

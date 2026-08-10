@@ -16,7 +16,7 @@ describe("offerServiceSelectionTool", () => {
     mockedServiceFindFirst.mockReset();
   });
 
-  it("has the expected name and optional categories/serviceName parameters", () => {
+  it("has the expected name and optional categories/serviceName/confirmFirst parameters", () => {
     expect(offerServiceSelectionTool.name).toBe("offer_service_selection");
     expect(offerServiceSelectionTool.parameters).toEqual({
       type: "object",
@@ -28,6 +28,10 @@ describe("offerServiceSelectionTool", () => {
         },
         serviceName: {
           type: "string",
+          description: expect.any(String),
+        },
+        confirmFirst: {
+          type: "boolean",
           description: expect.any(String),
         },
       },
@@ -72,5 +76,26 @@ describe("offerServiceSelectionTool", () => {
     const result = await offerServiceSelectionTool.handler({ serviceName: "Servicio Que No Existe" });
 
     expect(result).toEqual({ shown: true });
+  });
+
+  it("with confirmFirst and a real serviceName, flags needsConfirmation so the client sees a Sí/No prompt", async () => {
+    mockedServiceFindFirst.mockResolvedValue({ id: "svc-1", name: "Mani Spa (regular)" } as never);
+
+    const result = await offerServiceSelectionTool.handler({ serviceName: "Mani Spa (regular)", confirmFirst: true });
+
+    expect(result).toEqual({
+      shown: true,
+      serviceId: "svc-1",
+      serviceName: "Mani Spa (regular)",
+      needsConfirmation: true,
+    });
+  });
+
+  it("without confirmFirst, never includes needsConfirmation even when the service resolves", async () => {
+    mockedServiceFindFirst.mockResolvedValue({ id: "svc-1", name: "Mani Spa (regular)" } as never);
+
+    const result = await offerServiceSelectionTool.handler({ serviceName: "Mani Spa (regular)" });
+
+    expect(result).toEqual({ shown: true, serviceId: "svc-1", serviceName: "Mani Spa (regular)" });
   });
 });

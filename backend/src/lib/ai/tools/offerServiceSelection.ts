@@ -4,6 +4,7 @@ import type { ToolDefinition } from "../types";
 interface OfferServiceSelectionArgs {
   categories?: string[];
   serviceName?: string;
+  confirmFirst?: boolean;
 }
 
 // A near-signal-only tool: its only real effect is validating the optional `categories`/
@@ -23,12 +24,16 @@ export const offerServiceSelectionTool: ToolDefinition<OfferServiceSelectionArgs
     "la función; si no invocas la función, la clienta no verá ningún selector y tu mensaje quedará incompleto. " +
     "Si la clienta YA confirmó el servicio exacto que quiere (se lo devolviste vía get_service_info y ella expresó " +
     "que quiere agendarlo), pasa ese nombre exacto en `serviceName` — esto la lleva directo al paso de elegir " +
-    "especialista, fecha y hora para ESE servicio, saltando por completo el selector de categoría/servicio. Si en " +
-    "cambio la clienta expresó intención de agendar sin haber precisado el servicio todavía, pero lo que dijo ya " +
-    "deja clara la categoría (ej. \"las uñas\"/\"uñas de manos y pies\" → categories: [\"Manos\",\"Pies\"]; \"el " +
+    "especialista, fecha y hora para ESE servicio, saltando por completo el selector de categoría/servicio. Si el " +
+    "nombre que la clienta usó era impreciso o tenía errores y get_service_info encontró algo que PROBABLEMENTE es " +
+    "lo que quiso decir pero no estás segura, pasa también confirmFirst: true — esto le muestra un \"¿Quieres " +
+    "agendar [servicio]? Sí / No\" de un solo toque antes de continuar, en vez de asumir directamente. Si en cambio " +
+    "la clienta expresó intención de agendar sin haber precisado el servicio todavía, pero lo que dijo ya deja " +
+    "clara la categoría (ej. \"las uñas\"/\"uñas de manos y pies\" → categories: [\"Manos\",\"Pies\"]; \"el " +
     "cabello\" → [\"Cabello\"]; \"las cejas\" → [\"Cejas\"]), pasa esas categorías en `categories` para que el " +
     "selector arranque ya filtrado en vez de mostrar las 10 categorías completas. Si no sabes ni el servicio ni la " +
-    "categoría, omite ambos parámetros y se mostrará el selector completo. Nunca uses ambos parámetros a la vez.",
+    "categoría, omite ambos parámetros y se mostrará el selector completo. Nunca uses categories y serviceName a " +
+    "la vez.",
   parameters: {
     type: "object",
     properties: {
@@ -42,9 +47,15 @@ export const offerServiceSelectionTool: ToolDefinition<OfferServiceSelectionArgs
         description:
           "Nombre EXACTO (tal cual lo devolvió get_service_info) del servicio que la clienta ya confirmó querer agendar.",
       },
+      confirmFirst: {
+        type: "boolean",
+        description:
+          "true si no estás segura de que este sea el servicio correcto (el nombre de la clienta era impreciso) y " +
+          "quieres que confirme con un simple Sí/No antes de continuar.",
+      },
     },
   },
-  handler: async ({ categories, serviceName }) => {
+  handler: async ({ categories, serviceName, confirmFirst }) => {
     if (serviceName) {
       // Defensive, same principle as every other tool: never trust the model's own idea of the
       // service name — only pass through a real, active service the client can actually book.
@@ -52,7 +63,14 @@ export const offerServiceSelectionTool: ToolDefinition<OfferServiceSelectionArgs
         where: { active: true, name: { equals: serviceName, mode: "insensitive" } },
         select: { id: true, name: true },
       });
-      if (service) return { shown: true, serviceId: service.id, serviceName: service.name };
+      if (service) {
+        return {
+          shown: true,
+          serviceId: service.id,
+          serviceName: service.name,
+          ...(confirmFirst ? { needsConfirmation: true } : {}),
+        };
+      }
       // Falls through to the categories/plain-signal path below if the name didn't resolve —
       // better to show the client a working selector than nothing at all.
     }

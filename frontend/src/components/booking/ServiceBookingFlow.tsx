@@ -41,6 +41,7 @@ export function ServiceBookingFlow({
   showProgress = true,
   initialCategories,
   initialServiceId,
+  initialServiceNeedsConfirmation,
 }: {
   sessionToken: string;
   onClose?: () => void;
@@ -57,6 +58,10 @@ export function ServiceBookingFlow({
   // the catalog loads and this id is matched against it. Takes priority over initialCategories
   // if somehow both are given (the backend tool never sends both at once).
   initialServiceId?: string;
+  // When the AI matched initialServiceId from imprecise/misspelled wording and isn't fully
+  // confident, this shows a "¿Quieres agendar X? Sí/No" single-tap confirm before jumping to
+  // especialista, instead of assuming the match is correct.
+  initialServiceNeedsConfirmation?: boolean;
 }) {
   const singleInitialCategory =
     initialCategories && initialCategories.length === 1 ? initialCategories[0] : null;
@@ -81,6 +86,9 @@ export function ServiceBookingFlow({
   // resolved — without this, there'd be a one-frame flash of the category picker before the
   // effect below fires selectService() and flips to "steps".
   const [serviceLookupDone, setServiceLookupDone] = useState(!initialServiceId);
+  // Set (instead of calling selectService directly) when initialServiceNeedsConfirmation is
+  // true — renders a "¿Quieres agendar X? Sí/No" step instead of assuming the match is right.
+  const [pendingConfirmService, setPendingConfirmService] = useState<ServiceSummary | null>(null);
 
   const flow = useBookingFlow(sessionToken);
 
@@ -104,13 +112,15 @@ export function ServiceBookingFlow({
   useEffect(() => {
     if (!initialServiceId || serviceLookupDone || !servicesData) return;
     const match = servicesData.find((s) => s.id === initialServiceId);
-    if (match) {
+    if (match && initialServiceNeedsConfirmation) {
+      setPendingConfirmService(match);
+    } else if (match) {
       selectService(match);
     }
     // No match (shouldn't happen — the backend already validated it exists) falls back to the
     // normal categoría step once serviceLookupDone flips, rather than leaving the client stuck.
     setServiceLookupDone(true);
-  }, [servicesData, initialServiceId, serviceLookupDone, selectService]);
+  }, [servicesData, initialServiceId, initialServiceNeedsConfirmation, serviceLookupDone, selectService]);
 
   const categories = useMemo(() => {
     if (!servicesData) return [];
@@ -183,7 +193,37 @@ export function ServiceBookingFlow({
 
       {!serviceLookupDone && !loadError && <p style={{ color: "var(--color-text-muted)" }}>Cargando…</p>}
 
-      {serviceLookupDone && step === "categoria" && (
+      {pendingConfirmService && (
+        <div className="flex flex-col gap-2">
+          <p className="text-sm font-medium" style={{ color: "var(--color-text)" }}>
+            ¿Quieres agendar {pendingConfirmService.name} ({formatPrice(pendingConfirmService)})?
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const s = pendingConfirmService;
+                setPendingConfirmService(null);
+                selectService(s);
+              }}
+              className="rounded-full px-4 py-2 text-sm text-white"
+              style={{ backgroundColor: "var(--color-primary)" }}
+            >
+              Sí
+            </button>
+            <button
+              type="button"
+              onClick={() => setPendingConfirmService(null)}
+              className="rounded-full px-4 py-2 text-sm"
+              style={boxStyle}
+            >
+              No, buscar otro
+            </button>
+          </div>
+        </div>
+      )}
+
+      {serviceLookupDone && !pendingConfirmService && step === "categoria" && (
         <div className="flex flex-col gap-2">
           <p className="text-sm font-medium" style={{ color: "var(--color-text)" }}>
             ¿En qué servicio desearías agendar hoy?
@@ -208,7 +248,7 @@ export function ServiceBookingFlow({
         </div>
       )}
 
-      {serviceLookupDone && step === "servicio" && (
+      {serviceLookupDone && !pendingConfirmService && step === "servicio" && (
         <div className="flex flex-col gap-2">
           <p className="text-sm font-medium" style={{ color: "var(--color-text)" }}>
             ¿Cuál servicio de {selectedCategories?.join(" o ")} te gustaría?
