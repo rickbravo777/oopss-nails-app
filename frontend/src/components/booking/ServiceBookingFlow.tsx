@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { fetchServices, formatPrice, type ServiceSummary } from "../../lib/api/services";
 import { useBookingFlow } from "../../lib/useBookingFlow";
@@ -40,6 +40,7 @@ export function ServiceBookingFlow({
   onClose,
   showProgress = true,
   initialCategories,
+  initialServiceId,
 }: {
   sessionToken: string;
   onClose?: () => void;
@@ -51,6 +52,11 @@ export function ServiceBookingFlow({
   // single-tap "categoria" step, just filtered down to only the relevant ones instead of
   // showing all 10.
   initialCategories?: string[];
+  // The exact service the client already confirmed she wants (e.g. resolved via a Q&A earlier
+  // in the chat). Skips categoría AND servicio entirely — jumps straight to especialista once
+  // the catalog loads and this id is matched against it. Takes priority over initialCategories
+  // if somehow both are given (the backend tool never sends both at once).
+  initialServiceId?: string;
 }) {
   const singleInitialCategory =
     initialCategories && initialCategories.length === 1 ? initialCategories[0] : null;
@@ -71,14 +77,40 @@ export function ServiceBookingFlow({
   );
   const [service, setService] = useState<ServiceSummary | null>(null);
   const [specialistAutoSelected, setSpecialistAutoSelected] = useState(false);
+  // Gates rendering the categoría/servicio steps until an initialServiceId lookup (if any) has
+  // resolved — without this, there'd be a one-frame flash of the category picker before the
+  // effect below fires selectService() and flips to "steps".
+  const [serviceLookupDone, setServiceLookupDone] = useState(!initialServiceId);
 
   const flow = useBookingFlow(sessionToken);
+
+  const selectService = useCallback(
+    async (s: ServiceSummary) => {
+      setService(s);
+      const { autoSelected } = await flow.loadSpecialistsForService(s);
+      setSpecialistAutoSelected(autoSelected);
+      setSubStep(autoSelected ? "fecha" : "especialista");
+      setStep("steps");
+    },
+    [flow],
+  );
 
   useEffect(() => {
     fetchServices()
       .then((d) => setServicesData(d.services))
       .catch(() => setLoadError("No se pudo cargar el catálogo."));
   }, []);
+
+  useEffect(() => {
+    if (!initialServiceId || serviceLookupDone || !servicesData) return;
+    const match = servicesData.find((s) => s.id === initialServiceId);
+    if (match) {
+      selectService(match);
+    }
+    // No match (shouldn't happen — the backend already validated it exists) falls back to the
+    // normal categoría step once serviceLookupDone flips, rather than leaving the client stuck.
+    setServiceLookupDone(true);
+  }, [servicesData, initialServiceId, serviceLookupDone, selectService]);
 
   const categories = useMemo(() => {
     if (!servicesData) return [];
@@ -106,19 +138,14 @@ export function ServiceBookingFlow({
     [servicesData, selectedCategories],
   );
 
-  async function selectService(s: ServiceSummary) {
-    setService(s);
-    const { autoSelected } = await flow.loadSpecialistsForService(s);
-    setSpecialistAutoSelected(autoSelected);
-    setSubStep(autoSelected ? "fecha" : "especialista");
-    setStep("steps");
-  }
-
   function reset() {
     setStep(singleInitialCategory ? "servicio" : "categoria");
     setSelectedCategories(singleInitialCategory ? [singleInitialCategory] : null);
     setService(null);
     flow.reset();
+    // Re-arms the same confirmed-service auto-select for "agendar otro" — the client
+    // presumably wants another slot for the same service she just booked, not a fresh pick.
+    if (initialServiceId) setServiceLookupDone(false);
   }
 
   const currentIndex = step === "steps" ? PROGRESS_ORDER.indexOf(subStep) : PROGRESS_ORDER.indexOf(step);
@@ -154,7 +181,9 @@ export function ServiceBookingFlow({
       )}
       {step === "steps" && service && <SummaryRow label="Servicio" value={service.name} />}
 
-      {step === "categoria" && (
+      {!serviceLookupDone && !loadError && <p style={{ color: "var(--color-text-muted)" }}>Cargando…</p>}
+
+      {serviceLookupDone && step === "categoria" && (
         <div className="flex flex-col gap-2">
           <p className="text-sm font-medium" style={{ color: "var(--color-text)" }}>
             ¿En qué servicio desearías agendar hoy?
@@ -179,7 +208,7 @@ export function ServiceBookingFlow({
         </div>
       )}
 
-      {step === "servicio" && (
+      {serviceLookupDone && step === "servicio" && (
         <div className="flex flex-col gap-2">
           <p className="text-sm font-medium" style={{ color: "var(--color-text)" }}>
             ¿Cuál servicio de {selectedCategories?.join(" o ")} te gustaría?

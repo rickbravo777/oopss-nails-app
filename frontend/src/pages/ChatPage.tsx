@@ -39,6 +39,16 @@ function offeredCategories(toolCallMeta?: ToolCallLogEntry[] | null): string[] |
   return result?.categories && result.categories.length > 0 ? result.categories : undefined;
 }
 
+// The exact service the client already confirmed she wants (e.g. after a Q&A resolved via
+// get_service_info) — validated server-side against the real catalog. When present, the
+// booking flow skips categoría AND servicio entirely and jumps straight to especialista →
+// fecha → hora → datos for this one service, instead of asking for those details in prose.
+function offeredServiceId(toolCallMeta?: ToolCallLogEntry[] | null): string | undefined {
+  const entry = toolCallMeta?.find((e) => e.tool === "offer_service_selection");
+  const result = entry?.result as { serviceId?: string } | undefined;
+  return result?.serviceId;
+}
+
 export function ChatPage() {
   const [searchParams] = useSearchParams();
   const serviceId = searchParams.get("service");
@@ -282,6 +292,7 @@ export function ChatPage() {
                   sessionToken={sessionToken}
                   showProgress={false}
                   initialCategories={offeredCategories(m.toolCallMeta)}
+                  initialServiceId={offeredServiceId(m.toolCallMeta)}
                 />
               </Card>
             )}
