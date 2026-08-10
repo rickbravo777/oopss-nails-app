@@ -78,6 +78,7 @@ Change requests handled after delivery (`/iterate`). Not IT/UJ work units — tr
 | 24 | 2026-08-09 | Naming a service + asking to book in one message ("agendar mani spa") showed the generic picker instead of that service (model guessed a fake name instead of calling get_service_info first) — fixed; added a requested "¿Quieres agendar X? Sí/No" confirm-first safety net for uncertain matches | completed |
 | 25 | 2026-08-09 | #24 still failed intermittently on cross-turn confirmation ("si agendemos") — root cause was history dropping tool-call context between turns; fixed deterministically with a "confirmed services" list re-derived from stored toolCallMeta and injected fresh every turn | completed |
 | 26 | 2026-08-09 | "Que servicios ofrecen?" sometimes showed picker-inviting text with no buttons (unreproducible live, intermittent LLM miss) — strengthened `withServiceSelectionFallback()` with a 4th trigger matching the app's own standard "elige el que prefieras" phrasing | completed (defense-in-depth; original failure not directly reproduced) |
+| 27 | 2026-08-09 | Worse variant of #26: confirming a service got the numbered-list "mal ejemplo" text with no picker — added a 5th targeted fallback trigger that recovers the correct service by matching a bolded name against already-validated services from the conversation | completed |
 
 ## Types
 

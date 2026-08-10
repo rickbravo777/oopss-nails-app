@@ -8,33 +8,44 @@
 // work from, and repeats the same wrong name into offer_service_selection — which then fails
 // to resolve and silently falls back to the generic picker.
 //
-// Re-deriving the real, validated names directly from each turn's already-stored
+// Re-deriving the real, validated services directly from each turn's already-stored
 // `toolCallMeta` (ground truth from get_service_info, not a recap the model might have
 // paraphrased) and handing them back to the model fresh on every call closes that gap without
 // depending on the model's own memory of its prior wording being exact — same principle as
-// DEC-14's fresh-date-injection, applied to service names instead of dates.
+// DEC-14's fresh-date-injection, applied to service names instead of dates. The `id` is kept
+// alongside each name so serviceSelectionFallback.ts can build a targeted, id-based fallback
+// entry directly, without a second DB round-trip.
 interface StoredMessageWithToolMeta {
   toolCallMeta: unknown;
 }
 
 interface StoredToolCallEntry {
   tool?: string;
-  result?: { found?: boolean; services?: { name?: string }[] };
+  result?: { found?: boolean; services?: { id?: string; name?: string }[] };
 }
 
-export function extractConfirmedServiceNames(history: StoredMessageWithToolMeta[]): string[] {
-  const names = new Set<string>();
+export interface ConfirmedService {
+  id: string;
+  name: string;
+}
+
+export function extractConfirmedServices(history: StoredMessageWithToolMeta[]): ConfirmedService[] {
+  const byId = new Map<string, ConfirmedService>();
   for (const message of history) {
     const meta = message.toolCallMeta;
     if (!Array.isArray(meta)) continue;
     for (const entry of meta as StoredToolCallEntry[]) {
       if (entry?.tool !== "get_service_info" || !entry.result?.found) continue;
       for (const service of entry.result.services ?? []) {
-        if (service?.name) names.add(service.name);
+        if (service?.id && service.name) byId.set(service.id, { id: service.id, name: service.name });
       }
     }
   }
-  return [...names];
+  return [...byId.values()];
+}
+
+export function extractConfirmedServiceNames(history: StoredMessageWithToolMeta[]): string[] {
+  return extractConfirmedServices(history).map((s) => s.name);
 }
 
 export function buildConfirmedServicesNote(confirmedServiceNames: string[]): string | null {

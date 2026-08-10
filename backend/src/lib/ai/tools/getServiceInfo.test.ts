@@ -10,6 +10,7 @@ const { getServiceInfoTool } = await import("./getServiceInfo");
 const mockedFindMany = vi.mocked(prisma.service.findMany);
 
 const MANICURE_GEL = {
+  id: "svc-manicure-gel",
   name: "Manicure Gel",
   priceType: "fixed",
   price: 24,
@@ -23,6 +24,7 @@ const MANICURE_GEL = {
 };
 
 const EXTENSION_POLYGEL = {
+  id: "svc-extension-polygel",
   name: "Extensión Polygel",
   priceType: "fixed",
   price: 49,
@@ -49,6 +51,7 @@ describe("getServiceInfoTool", () => {
       found: true,
       services: [
         {
+          id: "svc-manicure-gel",
           name: "Manicure Gel",
           category: "Manos",
           priceType: "fixed",

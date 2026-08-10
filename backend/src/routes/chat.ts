@@ -4,7 +4,7 @@ import { Router } from "express";
 import { z } from "zod";
 
 import { publishChatEvent, subscribeChatEvents } from "../lib/chatEvents";
-import { buildConfirmedServicesNote, extractConfirmedServiceNames } from "../lib/ai/confirmedServices";
+import { buildConfirmedServicesNote, extractConfirmedServices } from "../lib/ai/confirmedServices";
 import { OpenAIProvider } from "../lib/ai/openaiProvider";
 import { buildSystemPrompt } from "../lib/ai/systemPrompt";
 import { withServiceSelectionFallback } from "../lib/ai/serviceSelectionFallback";
@@ -115,8 +115,10 @@ async function processAssistantReply(conversationId: string): Promise<void> {
   ]);
 
   // See confirmedServices.ts for why this exists — the model's own prior prose isn't reliable
-  // enough to re-derive a validated service name from on a later "sí, agendemos" turn.
-  const confirmedServicesNote = buildConfirmedServicesNote(extractConfirmedServiceNames(history));
+  // enough to re-derive a validated service name from on a later "sí, agendemos" turn. Also
+  // reused below by withServiceSelectionFallback's targeted fallback (trigger 5).
+  const confirmedServices = extractConfirmedServices(history);
+  const confirmedServicesNote = buildConfirmedServicesNote(confirmedServices.map((s) => s.name));
   const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt },
     ...(confirmedServicesNote ? [{ role: "system" as const, content: confirmedServicesNote }] : []),
@@ -134,6 +136,7 @@ async function processAssistantReply(conversationId: string): Promise<void> {
   const isFirstAssistantReply = !history.some((m) => m.role === "assistant");
   const toolCallMeta = withServiceSelectionFallback(result.toolCallLog, result.finalMessage.content, {
     force: isFirstAssistantReply,
+    confirmedServices,
   });
 
   const assistantMessage = await prisma.message.create({

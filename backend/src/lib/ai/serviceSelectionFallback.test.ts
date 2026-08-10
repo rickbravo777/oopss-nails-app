@@ -85,6 +85,42 @@ describe("withServiceSelectionFallback", () => {
     expect(result).toBe(log);
   });
 
+  it("with a matching confirmed service, injects a TARGETED fallback (real serviceId) when the model asks for booking details in prose instead of using the picker", () => {
+    // Real reported bug: the model didn't even attempt a picker-inviting sentence — it reverted
+    // straight to the numbered-list pattern the prompt explicitly says never to use, for a
+    // service ("Relleno Acrílico") already confirmed earlier via get_service_info.
+    const result = withServiceSelectionFallback(
+      [],
+      "¡Perfecto! Para agendar tu cita de **Relleno Acrílico**, necesito que me indiques lo siguiente: " +
+        "1. **Día y hora** en que te gustaría venir. 2. **Tu nombre**. 3. **Tu número de teléfono**. " +
+        "Una vez que tenga esa información, puedo confirmar tu cita. 😊",
+      { confirmedServices: [{ id: "svc-relleno-acrilico", name: "Relleno Acrílico" }] },
+    );
+
+    expect(result).toEqual([
+      {
+        tool: "offer_service_selection",
+        arguments: { serviceName: "Relleno Acrílico" },
+        result: { shown: true, serviceId: "svc-relleno-acrilico", serviceName: "Relleno Acrílico", fallback: true },
+      },
+    ]);
+  });
+
+  it("without a matching confirmed service, still shows the generic picker rather than nothing", () => {
+    const result = withServiceSelectionFallback(
+      [],
+      "Necesito tu **día y hora** de preferencia y tu **número de teléfono** para agendar.",
+      { confirmedServices: [] },
+    );
+    expect(result).toEqual([{ tool: "offer_service_selection", arguments: {}, result: { shown: true, fallback: true } }]);
+  });
+
+  it("booking-details trigger requires BOTH día y hora AND teléfono — day alone isn't enough to assume it's asking for full booking details", () => {
+    const log = [{ tool: "get_service_info", arguments: {}, result: { found: true } }];
+    const result = withServiceSelectionFallback(log, "¿Qué día y hora te gustaría venir?");
+    expect(result).toBe(log);
+  });
+
   it("preserves existing tool calls when appending the fallback", () => {
     const log = [{ tool: "get_service_info", arguments: { query: "uñas" }, result: { found: false } }];
     const result = withServiceSelectionFallback(log, "¿Qué servicio específico deseas?");

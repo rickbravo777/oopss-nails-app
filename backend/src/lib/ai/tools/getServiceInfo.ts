@@ -76,7 +76,12 @@ export const getServiceInfoTool: ToolDefinition<GetServiceInfoArgs> = {
 
     return {
       found: true,
+      // `id` is included so serviceSelectionFallback.ts can cross-reference a real, already-
+      // validated service by id (not just name) when it needs to build a targeted fallback —
+      // not user-facing data, and no more sensitive than the ids already returned by the public
+      // /services endpoint.
       services: matches.slice(0, 10).map((s) => ({
+        id: s.id,
         name: s.name,
         category: s.category.name,
         priceType: s.priceType,
