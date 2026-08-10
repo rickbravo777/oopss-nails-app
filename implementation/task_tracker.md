@@ -81,6 +81,7 @@ Change requests handled after delivery (`/iterate`). Not IT/UJ work units — tr
 | 27 | 2026-08-09 | Worse variant of #26: confirming a service got the numbered-list "mal ejemplo" text with no picker — added a 5th targeted fallback trigger that recovers the correct service by matching a bolded name against already-validated services from the conversation | completed |
 | 28 | 2026-08-10 | Sixth variant: "quiero hacerme las uñas" got "Elige entre Manos o Pies" prose with no buttons (matched neither the "prefieras" nor "qué servicio" triggers) — added a 6th trigger, and generalized the fallback so any trigger now narrows to real category names mentioned in the reply instead of always showing all 10 | completed (defense-in-depth; original failure not directly reproduced) |
 | 29 | 2026-08-10 | Contact form (nombre/teléfono/correo) never appeared after especialista/fecha/hora — NOT an AI tool-calling miss this time; the widget rendered correctly but off-screen because the chat only auto-scrolls on new messages, not on the booking widget's internal step changes. Fixed by scrolling the widget itself into view on every step change | completed |
+| 30 | 2026-08-10 | "Qué es el rubber gel" → "si agendemos" fell back to the generic picker instead of jumping to that service — root cause was get_service_info never being called for "what is X" questions. Broadened the prompt rule, and added a 7th, structurally different fallback trigger reading the CLIENT's own message for booking intent instead of guessing the assistant's phrasing | completed |
 
 ## Types
 

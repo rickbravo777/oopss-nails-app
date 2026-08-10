@@ -136,10 +136,12 @@ async function processAssistantReply(conversationId: string): Promise<void> {
   // should always see it right after the greeting, not only when the model happens to call
   // the tool. Every later reply still falls back on the text heuristic, not this hard force.
   const isFirstAssistantReply = !history.some((m) => m.role === "assistant");
+  const lastUserMessage = [...history].reverse().find((m) => m.role === "user")?.content;
   const toolCallMeta = withServiceSelectionFallback(result.toolCallLog, result.finalMessage.content, {
     force: isFirstAssistantReply,
     confirmedServices,
     validCategoryNames,
+    lastUserMessage,
   });
 
   const assistantMessage = await prisma.message.create({

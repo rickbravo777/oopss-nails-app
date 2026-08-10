@@ -121,6 +121,91 @@ describe("withServiceSelectionFallback", () => {
     expect(result).toBe(log);
   });
 
+  it("resolves the single confirmed service when the client's own message expresses booking intent, even with no bolded name and no numbered-list pattern", () => {
+    // Real reported bug: client asked "que es el rubber gel" (get_service_info ran and
+    // confirmed the real "Rubber Gel" service), then said "si agendemos" — the model replied
+    // asking about day/specialist preference in ordinary prose, matching NONE of the text-based
+    // triggers (no "elige", no "teléfono" mention at all) — the client's own message is the only
+    // reliable signal left that a picker was owed here.
+    const result = withServiceSelectionFallback(
+      [],
+      "¡Perfecto! 😊 Ahora, necesito que me indiques qué día te gustaría agendar tu cita para el Rubber Gel. " +
+        "También, si tienes preferencia por alguna de nuestras especialistas: Tania, Mariangely o Yez.",
+      {
+        confirmedServices: [{ id: "svc-rubber-gel", name: "Rubber Gel" }],
+        lastUserMessage: "si agendemos",
+      },
+    );
+    expect(result).toEqual([
+      {
+        tool: "offer_service_selection",
+        arguments: { serviceName: "Rubber Gel" },
+        result: { shown: true, serviceId: "svc-rubber-gel", serviceName: "Rubber Gel", fallback: true },
+      },
+    ]);
+  });
+
+  it("also matches other booking-intent phrasings in the client's message (agendar, agéndame, reservar)", () => {
+    for (const lastUserMessage of ["quiero agendar por favor", "agéndame eso", "sí, resérvame ese horario"]) {
+      const result = withServiceSelectionFallback([], "Claro, ¿qué día prefieres?", {
+        confirmedServices: [{ id: "svc-x", name: "Servicio X" }],
+        lastUserMessage,
+      });
+      expect(result).toEqual([
+        {
+          tool: "offer_service_selection",
+          arguments: { serviceName: "Servicio X" },
+          result: { shown: true, serviceId: "svc-x", serviceName: "Servicio X", fallback: true },
+        },
+      ]);
+    }
+  });
+
+  it("with two or more confirmed services and no bolded match, booking intent falls back to the generic picker instead of guessing which service", () => {
+    const result = withServiceSelectionFallback([], "Claro, ¿qué día prefieres?", {
+      confirmedServices: [
+        { id: "svc-a", name: "Servicio A" },
+        { id: "svc-b", name: "Servicio B" },
+      ],
+      lastUserMessage: "si agendemos",
+    });
+    expect(result).toEqual([{ tool: "offer_service_selection", arguments: {}, result: { shown: true, fallback: true } }]);
+  });
+
+  it("bolded name in the reply still wins over the single-confirmed-service fallback when it identifies a specific service", () => {
+    const result = withServiceSelectionFallback([], "Perfecto, para tu **Servicio B** ¿qué día prefieres?", {
+      confirmedServices: [
+        { id: "svc-a", name: "Servicio A" },
+        { id: "svc-b", name: "Servicio B" },
+      ],
+      lastUserMessage: "si agendemos",
+    });
+    expect(result).toEqual([
+      {
+        tool: "offer_service_selection",
+        arguments: { serviceName: "Servicio B" },
+        result: { shown: true, serviceId: "svc-b", serviceName: "Servicio B", fallback: true },
+      },
+    ]);
+  });
+
+  it("booking intent with zero confirmed services still shows the generic picker rather than nothing", () => {
+    const result = withServiceSelectionFallback([], "Claro, ¿qué día prefieres?", {
+      confirmedServices: [],
+      lastUserMessage: "si, agendemos ya",
+    });
+    expect(result).toEqual([{ tool: "offer_service_selection", arguments: {}, result: { shown: true, fallback: true } }]);
+  });
+
+  it("does not fire when neither the client's message nor the reply text carries any booking/picker signal", () => {
+    const log = [{ tool: "get_service_info", arguments: {}, result: { found: true } }];
+    const result = withServiceSelectionFallback(log, "El precio es $40 e incluye limado y esmaltado.", {
+      confirmedServices: [{ id: "svc-x", name: "Servicio X" }],
+      lastUserMessage: "cuanto cuesta",
+    });
+    expect(result).toBe(log);
+  });
+
   it("injects a category-narrowed fallback when the model says 'elige entre X o Y' without calling the tool", () => {
     // Real reported bug: "quiero hacerme las uñas" got "¡Claro! Aquí tienes las opciones para
     // hacerte las uñas. Elige entre Manos o Pies 👇" with zero buttons underneath — the model
