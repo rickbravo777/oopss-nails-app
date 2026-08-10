@@ -73,6 +73,7 @@ Change requests handled after delivery (`/iterate`). Not IT/UJ work units — tr
 | 19 | 2026-08-08 | Added missing "Peinado" service; `offer_service_selection` gained an optional `categories` param so "uñas" narrows straight to Manos+Pies; caught+fixed a service-name-hallucination regression in the same pass | completed |
 | 20 | 2026-08-08 | Admin appointment-edit modal: fixed unreadable Estado dropdown (+ 8 identical selects elsewhere), added a real one-click "Cancelar cita" action (old "Cancelar" was just the dismiss button) | completed |
 | 21 | 2026-08-08 | Admin "Reagendar": can now change specialist (not just date/time) — `rescheduleAppointment()` gained an optional specialist param, new single-tap especialista→hora sub-flow in the edit modal | completed |
+| 22 | 2026-08-09 | `get_service_info` couldn't find a real service if the client's phrasing had an extra word or missing accent (e.g. "extension en polygel" → "Extensión Polygel") — rewrote matching to be word-based, accent/case-insensitive | completed |
 
 ## Types
 
