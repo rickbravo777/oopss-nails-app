@@ -109,10 +109,12 @@ chatRouter.post("/sessions/:id/messages", requireClientSession, chatMessageLimit
 });
 
 async function processAssistantReply(conversationId: string): Promise<void> {
-  const [systemPrompt, history] = await Promise.all([
+  const [systemPrompt, history, categories] = await Promise.all([
     buildSystemPrompt(),
     prisma.message.findMany({ where: { conversationId }, orderBy: { createdAt: "asc" } }),
+    prisma.serviceCategory.findMany({ select: { name: true } }),
   ]);
+  const validCategoryNames = categories.map((c) => c.name);
 
   // See confirmedServices.ts for why this exists — the model's own prior prose isn't reliable
   // enough to re-derive a validated service name from on a later "sí, agendemos" turn. Also
@@ -137,6 +139,7 @@ async function processAssistantReply(conversationId: string): Promise<void> {
   const toolCallMeta = withServiceSelectionFallback(result.toolCallLog, result.finalMessage.content, {
     force: isFirstAssistantReply,
     confirmedServices,
+    validCategoryNames,
   });
 
   const assistantMessage = await prisma.message.create({

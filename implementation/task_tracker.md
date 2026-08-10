@@ -79,6 +79,7 @@ Change requests handled after delivery (`/iterate`). Not IT/UJ work units — tr
 | 25 | 2026-08-09 | #24 still failed intermittently on cross-turn confirmation ("si agendemos") — root cause was history dropping tool-call context between turns; fixed deterministically with a "confirmed services" list re-derived from stored toolCallMeta and injected fresh every turn | completed |
 | 26 | 2026-08-09 | "Que servicios ofrecen?" sometimes showed picker-inviting text with no buttons (unreproducible live, intermittent LLM miss) — strengthened `withServiceSelectionFallback()` with a 4th trigger matching the app's own standard "elige el que prefieras" phrasing | completed (defense-in-depth; original failure not directly reproduced) |
 | 27 | 2026-08-09 | Worse variant of #26: confirming a service got the numbered-list "mal ejemplo" text with no picker — added a 5th targeted fallback trigger that recovers the correct service by matching a bolded name against already-validated services from the conversation | completed |
+| 28 | 2026-08-10 | Sixth variant: "quiero hacerme las uñas" got "Elige entre Manos o Pies" prose with no buttons (matched neither the "prefieras" nor "qué servicio" triggers) — added a 6th trigger, and generalized the fallback so any trigger now narrows to real category names mentioned in the reply instead of always showing all 10 | completed (defense-in-depth; original failure not directly reproduced) |
 
 ## Types
 

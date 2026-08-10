@@ -121,6 +121,45 @@ describe("withServiceSelectionFallback", () => {
     expect(result).toBe(log);
   });
 
+  it("injects a category-narrowed fallback when the model says 'elige entre X o Y' without calling the tool", () => {
+    // Real reported bug: "quiero hacerme las uñas" got "¡Claro! Aquí tienes las opciones para
+    // hacerte las uñas. Elige entre Manos o Pies 👇" with zero buttons underneath — the model
+    // never called offer_service_selection at all, and this phrasing doesn't contain
+    // "prefieras" so trigger (4) didn't catch it either.
+    const result = withServiceSelectionFallback(
+      [],
+      "¡Claro! Aquí tienes las opciones para hacerte las uñas. Elige entre Manos o Pies 👇",
+      { validCategoryNames: ["Manos", "Pies", "Cabello", "Cejas", "Pestañas"] },
+    );
+    expect(result).toEqual([
+      {
+        tool: "offer_service_selection",
+        arguments: { categories: ["Manos", "Pies"] },
+        result: { shown: true, categories: ["Manos", "Pies"], fallback: true },
+      },
+    ]);
+  });
+
+  it("falls back to the generic picker when 'elige entre' fires but no known category is mentioned", () => {
+    const result = withServiceSelectionFallback([], "Elige entre las opciones que te muestro 👇", {
+      validCategoryNames: ["Manos", "Pies"],
+    });
+    expect(result).toEqual([{ tool: "offer_service_selection", arguments: {}, result: { shown: true, fallback: true } }]);
+  });
+
+  it("also narrows by mentioned category on the generic 'which service' trigger, not just 'elige entre'", () => {
+    const result = withServiceSelectionFallback([], "¿Qué servicio te gustaría? Tenemos opciones de Cabello y Cejas.", {
+      validCategoryNames: ["Manos", "Pies", "Cabello", "Cejas"],
+    });
+    expect(result).toEqual([
+      {
+        tool: "offer_service_selection",
+        arguments: { categories: ["Cabello", "Cejas"] },
+        result: { shown: true, categories: ["Cabello", "Cejas"], fallback: true },
+      },
+    ]);
+  });
+
   it("preserves existing tool calls when appending the fallback", () => {
     const log = [{ tool: "get_service_info", arguments: { query: "uñas" }, result: { found: false } }];
     const result = withServiceSelectionFallback(log, "¿Qué servicio específico deseas?");
