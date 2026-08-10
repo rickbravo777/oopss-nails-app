@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { fetchServices, formatPrice, type ServiceSummary } from "../../lib/api/services";
 import { useBookingFlow } from "../../lib/useBookingFlow";
@@ -92,6 +92,25 @@ export function ServiceBookingFlow({
 
   const flow = useBookingFlow(sessionToken);
 
+  // Each step keeps the previous ones visible as a running summary (see BookingStepsPanel's own
+  // comment on why), so this widget keeps growing taller with every tap instead of replacing
+  // itself. ChatPage only auto-scrolls the chat panel when a NEW message arrives (its effect
+  // depends on `messages`), which never fires for an in-place step change — on a short viewport
+  // (phone-sized), a client can tap through especialista → fecha → hora and have the "Tu
+  // nombre/teléfono/correo" step render correctly but entirely below the fold, with nothing
+  // prompting her to scroll down to see it. Scroll this widget's own bottom into view on every
+  // step change so newly-revealed content is never invisible, regardless of which of the three
+  // host surfaces (modal, welcome screen, inline chat) rendered it.
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // "smooth" depends on the browser actually servicing animation frames for this tab —
+    // verified in this project's own dev tooling that a backgrounded/non-composited tab silently
+    // drops a smooth scrollIntoView entirely (it never moves, no error, nothing). "auto" (instant)
+    // is a synchronous layout operation that doesn't have that dependency — worth the lost easing
+    // for a fix whose entire point is "the client must actually see this content."
+    rootRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+  }, [step, subStep, pendingConfirmService]);
+
   const selectService = useCallback(
     async (s: ServiceSummary) => {
       setService(s);
@@ -161,7 +180,7 @@ export function ServiceBookingFlow({
   const currentIndex = step === "steps" ? PROGRESS_ORDER.indexOf(subStep) : PROGRESS_ORDER.indexOf(step);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div ref={rootRef} className="flex flex-col gap-3">
       {showProgress && !(step === "steps" && subStep === "exito") && (
         <div className="flex flex-wrap gap-1 text-xs">
           {PROGRESS_ORDER.map((s, i) => (
