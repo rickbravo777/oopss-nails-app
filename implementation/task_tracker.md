@@ -83,6 +83,7 @@ Change requests handled after delivery (`/iterate`). Not IT/UJ work units — tr
 | 29 | 2026-08-10 | Contact form (nombre/teléfono/correo) never appeared after especialista/fecha/hora — NOT an AI tool-calling miss this time; the widget rendered correctly but off-screen because the chat only auto-scrolls on new messages, not on the booking widget's internal step changes. Fixed by scrolling the widget itself into view on every step change | completed |
 | 30 | 2026-08-10 | "Qué es el rubber gel" → "si agendemos" fell back to the generic picker instead of jumping to that service — root cause was get_service_info never being called for "what is X" questions. Broadened the prompt rule, and added a 7th, structurally different fallback trigger reading the CLIENT's own message for booking intent instead of guessing the assistant's phrasing | completed |
 | 31 | 2026-08-10 | Model called offer_service_selection TWICE in one reply (once per service, after pricing two services then a generic "quiero agendar") — frontend only honors the first, silently booking the wrong one. Added collapseConflictingServiceOffers() to fall back to the safe generic picker when 2+ calls name different services | completed |
+| 32 | 2026-08-10 | "Quién es Yez?" got a hedge instead of the real answer — Specialist.bio existed and was admin-editable but never surfaced to the AI. buildSystemPrompt() now injects a staff-roster section; updated Yez's bio to reflect she's the owner | completed |
 
 ## Types
 

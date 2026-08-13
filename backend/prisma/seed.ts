@@ -146,7 +146,7 @@ const SATURDAY = 6;
 const SPECIALISTS: SpecialistSeed[] = [
   {
     name: "Yez",
-    bio: "Especialista en uñas — Polygel y Rubber Gel.",
+    bio: "Dueña de Oopss Nails y especialista en uñas, con amplia experiencia en Polygel y Rubber Gel.",
     services: ["Rubber Gel", "Extensión Polygel", "Relleno Polygel"],
     schedule: [
       ...WEEKDAYS.map((d) => ({ dayOfWeek: d, startTime: "09:00", endTime: "19:00" })),

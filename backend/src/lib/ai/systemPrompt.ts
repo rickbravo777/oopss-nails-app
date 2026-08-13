@@ -35,9 +35,10 @@ ESCALAMIENTO A HUMANO — REGLA ESTRICTA: antes de considerar escalar, usa SIEMP
 Responde siempre en español.`;
 
 export async function buildSystemPrompt(): Promise<string> {
-  const [synonyms, policies] = await Promise.all([
+  const [synonyms, policies, specialists] = await Promise.all([
     prisma.termSynonym.findMany({ include: { canonicalService: { select: { name: true } } } }),
     prisma.assistantPolicy.findMany(),
+    prisma.specialist.findMany({ where: { active: true, bio: { not: null } }, select: { name: true, bio: true } }),
   ]);
 
   // Rebuilt fresh on every call (never cached) so it's always today's actual date — the model
@@ -66,6 +67,15 @@ export async function buildSystemPrompt(): Promise<string> {
     parts.push(
       `EQUIVALENCIAS DE TÉRMINOS: cuando la clienta use uno de estos términos coloquiales, busca en get_service_info el NOMBRE OFICIAL indicado (si hay más de una opción, pregunta o infiere cuál corresponde por el contexto — ej. manos vs. pies):\n${lines.join("\n")}`,
     );
+  }
+
+  if (specialists.length > 0) {
+    // Lets the assistant answer "quién es X" / "cuéntame de X" with real, salon-provided
+    // context (e.g. an owner's experience) instead of hedging that it has no information —
+    // previously nothing surfaced Specialist.bio to the model at all. Admin-editable via
+    // /admin/especialistas; keep bios short and current.
+    const lines = specialists.map((s) => `- ${s.name}: ${s.bio}`);
+    parts.push(`PERSONAL DEL SALÓN — quién es cada especialista:\n${lines.join("\n")}`);
   }
 
   for (const policy of policies) {
